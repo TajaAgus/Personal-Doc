@@ -1,0 +1,37 @@
+#!/usr/bin/python
+from __future__ import print_function
+import argparse
+import os
+import sys
+
+path = "."
+files = os.listdir(path)
+
+if __name__ == "__main__":
+
+	parser = argparse.ArgumentParser(description='List all documentation files')
+	parser.add_argument('file', type=str, nargs='?', help='name of the file to list commands')
+	parser.add_argument('-e', type=str, metavar="filename", help='edit or add file')
+	parser.add_argument('-x', type=str, metavar="filename", help='archive a file')
+	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, developed by Piotr Romashov')
+	options = parser.parse_args()	
+
+if options.file:
+	filename = path+options.file+"-commands.sh"
+	with open(filename, 'r') as f:
+		os.system("less {}".format(filename))
+elif options.e:
+	filename = path+options.e+"-commands.sh"
+	os.system("vi {}".format(filename))
+elif options.x:
+	filename = path+options.x+"-commands.sh"
+	os.system("mv {} archived/".format(filename))
+else:
+	os.system("pwd")
+	index = 1
+	for key, file in enumerate(files):
+		if "-commands.sh" not in file:
+			continue
+		print("[{}]: {}".format(index, file))
+		index += 1
+
