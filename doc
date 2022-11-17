@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-path = "."
+path = "Docs/"
 files = os.listdir(path)
 
 if __name__ == "__main__":
@@ -25,7 +25,7 @@ elif options.e:
 	os.system("vi {}".format(filename))
 elif options.x:
 	filename = path+options.x+"-commands.sh"
-	os.system("mv {} archived/".format(filename))
+	os.system("mv {} {}archived/".format(filename, path))
 else:
 	os.system("pwd")
 	index = 1
