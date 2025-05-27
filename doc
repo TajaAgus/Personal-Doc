@@ -38,6 +38,7 @@ if __name__ == "__main__":
 	parser.add_argument('file', type=str, nargs='?', help='name of the file to list commands')
 	parser.add_argument('-e', type=str, metavar="filename", help='edit or add file')
 	parser.add_argument('-x', type=str, metavar="filename", help='archive a file')
+	parser.add_argument('-r', type=str, metavar="filename", help='remove a file')
 	parser.add_argument('-i', '--install', action='store_true', help='add script path to .zshrc')
 	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, developed by Piotr Romashov')
 	options = parser.parse_args()
@@ -45,21 +46,19 @@ if __name__ == "__main__":
 	if options.install:
 		doc_manager.add_to_zshrc()
 	elif options.file:
-		filename = doc_manager.docs_path + options.file + "-commands.sh"
-		with open(filename, 'r') as f:
-			os.system("less {}".format(filename))
-	elif options.e:
-		filename = doc_manager.docs_path + options.e + "-commands.sh"
+		filename = doc_manager.docs_path + options.file + ".sh"
 		os.system("vi {}".format(filename))
 	elif options.x:
-		filename = doc_manager.docs_path + options.x + "-commands.sh"
+		filename = doc_manager.docs_path + options.x + ".sh"
 		os.system("mv {} {}archived/".format(filename, doc_manager.docs_path))
+	elif options.r:
+		filename = doc_manager.docs_path + options.r + ".sh"
+		os.system("rm {}".format(filename))
 	else:
-		os.system("pwd")
-		index = 1
+		# index = 1
 		for key, file in enumerate(doc_manager.files):
-			if "-commands.sh" not in file:
+			if file == "archived":
 				continue
-			print("[{}]: {}".format(index, file))
-			index += 1
+			print("{}".format(file))
+			# index += 1
 
