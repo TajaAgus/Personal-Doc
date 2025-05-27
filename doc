@@ -4,34 +4,62 @@ import argparse
 import os
 import sys
 
-path = os.path.dirname(os.path.abspath(__file__)) + "/Docs/"
+path = os.path.dirname(os.path.abspath(__file__)) + "/docs/"
 files = os.listdir(path)
 
-if __name__ == "__main__":
+class DocManager:
+	def __init__(self):
+		self.script_dir = os.path.dirname(os.path.abspath(__file__))
+		self.docs_path = self.script_dir + "/docs/"
+		self.files = os.listdir(self.docs_path)
+	
+	def add_to_zshrc(self):
+		zshrc_path = os.path.expanduser("~/.zshrc")
+		path_line = f'export PATH="$PATH:{self.script_dir}"\n'
+		
+		if os.path.exists(zshrc_path):
+			with open(zshrc_path, 'r') as f:
+				content = f.read()
+			
+			if self.script_dir in content:
+				print(f"Path {self.script_dir} is already in .zshrc")
+				return
+		
+		with open(zshrc_path, 'a') as f:
+			f.write(f'\n# Added by doc script\n{path_line}')
+		
+		print(f"Added {self.script_dir} to .zshrc")
+		print("Please run 'source ~/.zshrc' or restart your terminal to apply changes")
 
+if __name__ == "__main__":
+	doc_manager = DocManager()
+	
 	parser = argparse.ArgumentParser(description='List all documentation files')
 	parser.add_argument('file', type=str, nargs='?', help='name of the file to list commands')
 	parser.add_argument('-e', type=str, metavar="filename", help='edit or add file')
 	parser.add_argument('-x', type=str, metavar="filename", help='archive a file')
+	parser.add_argument('-i', '--install', action='store_true', help='add script path to .zshrc')
 	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, developed by Piotr Romashov')
-	options = parser.parse_args()	
+	options = parser.parse_args()
 
-if options.file:
-	filename = path+options.file+"-commands.sh"
-	with open(filename, 'r') as f:
-		os.system("less {}".format(filename))
-elif options.e:
-	filename = path+options.e+"-commands.sh"
-	os.system("vi {}".format(filename))
-elif options.x:
-	filename = path+options.x+"-commands.sh"
-	os.system("mv {} {}archived/".format(filename, path))
-else:
-	os.system("pwd")
-	index = 1
-	for key, file in enumerate(files):
-		if "-commands.sh" not in file:
-			continue
-		print("[{}]: {}".format(index, file))
-		index += 1
+	if options.install:
+		doc_manager.add_to_zshrc()
+	elif options.file:
+		filename = doc_manager.docs_path + options.file + "-commands.sh"
+		with open(filename, 'r') as f:
+			os.system("less {}".format(filename))
+	elif options.e:
+		filename = doc_manager.docs_path + options.e + "-commands.sh"
+		os.system("vi {}".format(filename))
+	elif options.x:
+		filename = doc_manager.docs_path + options.x + "-commands.sh"
+		os.system("mv {} {}archived/".format(filename, doc_manager.docs_path))
+	else:
+		os.system("pwd")
+		index = 1
+		for key, file in enumerate(doc_manager.files):
+			if "-commands.sh" not in file:
+				continue
+			print("[{}]: {}".format(index, file))
+			index += 1
 
