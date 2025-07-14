@@ -1,21 +1,83 @@
-# Personal-Doc
+# Personal Documentation Manager
 
-This small program is to be as a quick personal(or shared via repository) documentation access in a terminal.
-I personally use it as a infra/devops tool to have quick access to my own commands, and it's super easy and friendly to use! It reuses less in the background to display and navigate the files.
+A powerful command-line tool for managing your personal shell script documentation. Quickly create, edit, search, and organize your command references and documentation files.
 
 ## Installation
 
-After cloning the project, you can either:
-1. Add it to your personal `bin` for quick access in the terminal, or
-2. Use the built-in installation command: `./doc -i` or `./doc --install`
+### Method 1: Quick Install (Recommended)
 
-The installation command will automatically add the script's path to your `.zshrc` file, allowing you to run `doc` from anywhere in your terminal.
+```bash
+git clone <repository-url>
+cd Personal-Doc
+./doc --install
+```
+
+The `--install` command will:
+
+- Create necessary directories
+- Add the script to your shell's PATH
+- Work with zsh, bash, or fish shells
+
+### Method 2: Manual Install
+
+```bash
+# Clone and add to your personal bin
+git clone <repository-url>
+cd Personal-Doc
+cp doc ~/bin/  # or any directory in your PATH
+```
+
+After installation, restart your terminal or run `source ~/.zshrc` (or your shell's config file).
 
 ## Usage
 
-* `doc`: Displays all command files
-* `doc filename`: Display contents of a specific command file
-* `doc -e filename`: Edit or add a new commands file
-* `doc -x filename`: Archive a commands file (moves to archived folder)
-* `doc -i` or `doc --install`: Add script path to .zshrc for global access
-* `doc --version`: Show version information
+### Basic Commands
+
+| Command | Description |
+|---------|-------------|
+| `doc` | List all documentation files |
+| `doc -l` | List files with details (size, date) |
+| `doc filename` | View contents of a specific file |
+| `doc -e filename` | Edit or create a new file |
+| `doc -s "query"` | Search files for content |
+| `doc -x filename` | Archive a file |
+| `doc -r filename` | Remove a file (with confirmation) |
+| `doc -r filename -f` | Force remove without confirmation |
+
+### Examples
+
+```bash
+# List all documentation files
+doc
+
+# List with file details
+doc -l
+
+# View a specific file
+doc ssh-commands
+
+# Edit or create a new file
+doc -e docker-tips
+
+# Search for files containing "git"
+doc -s "git"
+
+# Archive an old file
+doc -x old-commands
+
+# Remove a file (will ask for confirmation)
+doc -r unused-file
+
+# Force remove without confirmation
+doc -r temp-file -f
+
+# Install the tool system-wide
+doc --install
+```
+
+#### File Organization
+
+- All files are stored in `docs/` directory
+- Archived files go to `docs/archived/`
+- Files automatically get `.sh` extension
+- Duplicate archive names are handled automatically

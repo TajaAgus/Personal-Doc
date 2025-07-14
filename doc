@@ -1,64 +1,303 @@
 #!/usr/bin/python3
-from __future__ import print_function
+"""
+Personal Documentation Manager
+A tool for managing shell script documentation files.
+"""
+
 import argparse
 import os
+import shutil
+import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 
-path = os.path.dirname(os.path.abspath(__file__)) + "/docs/"
-files = os.listdir(path)
 
 class DocManager:
-	def __init__(self):
-		self.script_dir = os.path.dirname(os.path.abspath(__file__))
-		self.docs_path = self.script_dir + "/docs/"
-		self.files = os.listdir(self.docs_path)
-	
-	def add_to_zshrc(self):
-		zshrc_path = os.path.expanduser("~/.zshrc")
-		path_line = f'export PATH="$PATH:{self.script_dir}"\n'
-		
-		if os.path.exists(zshrc_path):
-			with open(zshrc_path, 'r') as f:
-				content = f.read()
-			
-			if self.script_dir in content:
-				print(f"Path {self.script_dir} is already in .zshrc")
-				return
-		
-		with open(zshrc_path, 'a') as f:
-			f.write(f'\n# Added by doc script\n{path_line}')
-		
-		print(f"Added {self.script_dir} to .zshrc")
-		print("Please run 'source ~/.zshrc' or restart your terminal to apply changes")
+    """Manages documentation files with improved security and features."""
+
+    def __init__(self):
+        self.script_dir = Path(__file__).parent.absolute()
+        self.docs_path = self.script_dir / "docs"
+        self.archived_path = self.docs_path / "archived"
+        self.editor = os.environ.get("EDITOR", "nano")
+
+        self._ensure_directories()
+
+    def _ensure_directories(self):
+        """Create necessary directories if they don't exist."""
+        self.docs_path.mkdir(exist_ok=True)
+        self.archived_path.mkdir(exist_ok=True)
+
+    def _get_file_path(self, filename):
+        """Get the full path for a documentation file."""
+        if not filename.endswith(".sh"):
+            filename += ".sh"
+        return self.docs_path / filename
+
+    def _validate_filename(self, filename):
+        """Validate filename for security."""
+        if not filename or ".." in filename or "/" in filename:
+            raise ValueError(f"Invalid filename: {filename}")
+        return filename.replace(" ", "_")
+
+    def list_files(self, show_details=False):
+        """List all documentation files with optional details."""
+        files = [
+            f for f in self.docs_path.iterdir() if f.is_file() and f.suffix == ".sh"
+        ]
+
+        if not files:
+            print("No documentation files found.")
+            return
+
+        if show_details:
+            print(f"{'File':<30} {'Size':<10} {'Modified':<20}")
+            print("-" * 60)
+            for file in sorted(files):
+                stat = file.stat()
+                size = f"{stat.st_size}B"
+                modified = datetime.fromtimestamp(stat.st_mtime).strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+                print(f"{file.stem:<30} {size:<10} {modified:<20}")
+        else:
+            for file in sorted(files):
+                print(file.stem)
+
+    def view_file(self, filename):
+        """Display the contents of a documentation file."""
+        try:
+            filename = self._validate_filename(filename)
+            file_path = self._get_file_path(filename)
+
+            if not file_path.exists():
+                print(f"File '{filename}' not found.")
+                return False
+
+            print(f"\n--- Contents of {filename} ---")
+            with open(file_path, "r", encoding="utf-8") as f:
+                print(f.read())
+            print("--- End of file ---\n")
+            return True
+
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            return False
+
+    def edit_file(self, filename):
+        """Edit or create a documentation file using the system editor."""
+        try:
+            filename = self._validate_filename(filename)
+            file_path = self._get_file_path(filename)
+
+            # Use subprocess instead of os.system for security
+            result = subprocess.run([self.editor, str(file_path)], capture_output=False)
+
+            if result.returncode == 0:
+                if file_path.exists():
+                    print(
+                        f"File '{filename}' {'created' if file_path.stat().st_size > 0 else 'opened'}."
+                    )
+                return True
+            else:
+                print(f"Editor exited with error code {result.returncode}")
+                return False
+
+        except Exception as e:
+            print(f"Error editing file: {e}")
+            return False
+
+    def archive_file(self, filename):
+        """Archive a documentation file."""
+        try:
+            filename = self._validate_filename(filename)
+            file_path = self._get_file_path(filename)
+
+            if not file_path.exists():
+                print(f"File '{filename}' not found.")
+                return False
+
+            archived_file = self.archived_path / file_path.name
+
+            # Handle duplicate names in archive
+            counter = 1
+            while archived_file.exists():
+                name_parts = file_path.stem, counter, file_path.suffix
+                archived_file = (
+                    self.archived_path
+                    / f"{name_parts[0]}_{name_parts[1]}{name_parts[2]}"
+                )
+                counter += 1
+
+            shutil.move(str(file_path), str(archived_file))
+            print(f"Archived '{filename}' to {archived_file.name}")
+            return True
+
+        except Exception as e:
+            print(f"Error archiving file: {e}")
+            return False
+
+    def remove_file(self, filename, force=False):
+        """Remove a documentation file with optional confirmation."""
+        try:
+            filename = self._validate_filename(filename)
+            file_path = self._get_file_path(filename)
+
+            if not file_path.exists():
+                print(f"File '{filename}' not found.")
+                return False
+
+            if not force:
+                response = input(
+                    f"Are you sure you want to delete '{filename}'? (y/N): "
+                )
+                if response.lower() != "y":
+                    print("Deletion cancelled.")
+                    return False
+
+            file_path.unlink()
+            print(f"Removed '{filename}'")
+            return True
+
+        except Exception as e:
+            print(f"Error removing file: {e}")
+            return False
+
+    def search_files(self, query):
+        """Search for files containing the query string."""
+        results = []
+        files = [
+            f for f in self.docs_path.iterdir() if f.is_file() and f.suffix == ".sh"
+        ]
+
+        for file_path in files:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read().lower()
+                    if query.lower() in content:
+                        results.append(file_path.stem)
+            except Exception:
+                continue
+
+        if results:
+            print(f"Found '{query}' in:")
+            for result in results:
+                print(f"  {result}")
+        else:
+            print(f"No files contain '{query}'")
+
+    def add_to_shell_config(self):
+        """Add script path to shell configuration file."""
+        shell_configs = {
+            "zsh": Path.home() / ".zshrc",
+            "bash": Path.home() / ".bashrc",
+            "fish": Path.home() / ".config" / "fish" / "config.fish",
+        }
+
+        current_shell = os.environ.get("SHELL", "").split("/")[-1]
+        config_file = shell_configs.get(current_shell, shell_configs["bash"])
+
+        path_line = f'export PATH="$PATH:{self.script_dir}"\n'
+
+        try:
+            if config_file.exists():
+                with open(config_file, "r") as f:
+                    content = f.read()
+
+                if str(self.script_dir) in content:
+                    print(f"Path {self.script_dir} is already in {config_file.name}")
+                    return True
+
+            with open(config_file, "a") as f:
+                f.write(f"\n# Added by doc script\n{path_line}")
+
+            print(f"Added {self.script_dir} to {config_file.name}")
+            print(f"Please run 'source {config_file}' or restart your terminal")
+            return True
+
+        except Exception as e:
+            print(f"Error updating shell config: {e}")
+            return False
+
+
+def main():
+    """Main entry point."""
+    doc_manager = DocManager()
+
+    parser = argparse.ArgumentParser(
+        description="Personal Documentation Manager - Manage your shell script docs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  doc                    # List all files
+  doc -l                 # List with details
+  doc myfile             # View file contents
+  doc -e myfile          # Edit file
+  doc -s "ssh"           # Search for files containing 'ssh'
+  doc -x myfile          # Archive file
+  doc -r myfile          # Remove file
+        """,
+    )
+
+    parser.add_argument("file", type=str, nargs="?", help="Name of file to view")
+    parser.add_argument(
+        "-e", "--edit", type=str, metavar="filename", help="Edit or create file"
+    )
+    parser.add_argument(
+        "-l", "--list", action="store_true", help="List files with details"
+    )
+    parser.add_argument(
+        "-s", "--search", type=str, metavar="query", help="Search files for content"
+    )
+    parser.add_argument(
+        "-x", "--archive", type=str, metavar="filename", help="Archive a file"
+    )
+    parser.add_argument(
+        "-r", "--remove", type=str, metavar="filename", help="Remove a file"
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force operation without confirmation",
+    )
+    parser.add_argument(
+        "-i", "--install", action="store_true", help="Add script path to shell config"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s 2.0.0, enhanced by AI assistant",
+    )
+
+    args = parser.parse_args()
+
+    try:
+        if args.install:
+            doc_manager.add_to_shell_config()
+        elif args.edit:
+            doc_manager.edit_file(args.edit)
+        elif args.search:
+            doc_manager.search_files(args.search)
+        elif args.archive:
+            doc_manager.archive_file(args.archive)
+        elif args.remove:
+            doc_manager.remove_file(args.remove, args.force)
+        elif args.list:
+            doc_manager.list_files(show_details=True)
+        elif args.file:
+            doc_manager.view_file(args.file)
+        else:
+            doc_manager.list_files()
+
+    except KeyboardInterrupt:
+        print("\nOperation cancelled.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-	doc_manager = DocManager()
-	
-	parser = argparse.ArgumentParser(description='List all documentation files')
-	parser.add_argument('file', type=str, nargs='?', help='name of the file to list commands')
-	parser.add_argument('-e', type=str, metavar="filename", help='edit or add file')
-	parser.add_argument('-x', type=str, metavar="filename", help='archive a file')
-	parser.add_argument('-r', type=str, metavar="filename", help='remove a file')
-	parser.add_argument('-i', '--install', action='store_true', help='add script path to .zshrc')
-	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, developed by Piotr Romashov')
-	options = parser.parse_args()
-
-	if options.install:
-		doc_manager.add_to_zshrc()
-	elif options.file:
-		filename = doc_manager.docs_path + options.file + ".sh"
-		os.system("vi {}".format(filename))
-	elif options.x:
-		filename = doc_manager.docs_path + options.x + ".sh"
-		os.system("mv {} {}archived/".format(filename, doc_manager.docs_path))
-	elif options.r:
-		filename = doc_manager.docs_path + options.r + ".sh"
-		os.system("rm {}".format(filename))
-	else:
-		# index = 1
-		for key, file in enumerate(doc_manager.files):
-			if file == "archived":
-				continue
-			print("{}".format(file))
-			# index += 1
-
+    main()
